@@ -18,6 +18,10 @@ from pymavlink import mavutil
 import time
 import serial
 
+'''
+Buffer Class fifo
+'''
+
 class fifo(object):
     def __init__(self):
         self.buf = []
@@ -27,6 +31,10 @@ class fifo(object):
     def read(self):
         return self.buf.pop(0)
 
+'''
+Festlegen des Ports
+'''
+
 s_port = serial.Serial(
     port = '/dev/ttyUSB0',
     baudrate = 57600,
@@ -34,7 +42,9 @@ s_port = serial.Serial(
     stopbits=serial.STOPBITS_ONE,
     bytesize=serial.EIGHTBITS
 )
-
+'''
+Funktion zum Lesen des Ports. Uebergibt eine list mit Hexadezimalzahlen
+'''
 def read_port():
     out = []
     while s_port.inWaiting() > 0:
@@ -58,52 +68,62 @@ def write_on_port(strcommand):
 
 print("Creating MAVLink message...")
 # create a mavlink instance, which will do IO on file object 'f'
-
+'''
 
 s_port.isOpen()
 
 i=0
 while i < 255:
     f = fifo()
+
+    #mav ist die Mavlink Message. Hier in mavlink v1
     mav = mavlink1.MAVLink(f)
 
+    #out ist eine Liste mit hexadezimalen Zahlen
     out = read_port()
     time.sleep(0.05)
     if out == []:
         continue
-
-
+    print (out)
+    #bi ist eine Liste mit arabischen Zahlen
     bi = []
     bi = ([ord(c) for c in out])
 
+    #Diese Schleife ordnet bi[] so, dass bi[] immer mit einem Nachrichtenbeginn startet (bi[0] = 254)
     while bi[0]!=254:
-        bi[0]=[]
+        del bi[0]
         if bi==[]:
             break
-    n=1
-    while 1:
-        if bi[n]==254:
-            bi[n:]=[]
-            break
+        #print('bi = ' + str(bi))
 
+    if bi==[]:
+        continue
 
-    print('bi_len ' + str(len(bi)))
+    #stellt sicher, dass in bi[] nur eine Nachricht enthalten ist
+    if (len(bi)>(bi[1]+8) and bi!=[]):
+        del bi[1+bi[1:].index(254):]
+
+    #print('bi_len ' + str(len(bi)))
     #if len(bi) < 10:
     #    continue
-    print('bi = ' + str(bi))
-    #headerlen = 6
-    #print('header' + str(bi[:headerlen]))
-    print('\n')
-    #print(mav.decode(bi))
-    #if bi[0] == '254':
-    #    print(mav.decode(bi))
 
+    if len(bi)==(bi[1]+8):
+        print('bi = ' + str(bi))
+        #headerlen = 6
+        #print('header' + str(bi[:headerlen]))
+        bii = ([hex(d) for d in bi])
+        #bii = ([chr(d) for d in bi])
+        print(bii[0]=='0xfe')
+        print(mav.decode(bii))
+        #if bi[0] == '254':
+        #    print(mav.decode(bi))
+        print('\n')
     #"""
     i+=1
 
 s_port.close()
 
-
+'''
 
 
 def test_protocol(mavlink, signing=False):
@@ -128,14 +148,19 @@ def test_protocol(mavlink, signing=False):
     # alternatively, produce a MAVLink_param_set object 
     # this can be sent via your own transport if you like
     m = mav.param_set_encode(7, 1, "WP_RADIUS", 101, mavlink.MAV_PARAM_TYPE_REAL32)
-    #print(m)
+    print(type(m))
+    print('\n')
     m.pack(mav)
     #print(m.pack(mav))
+
     # get the encoded message as a buffer
     b = m.get_msgbuf()
-    #print(b)
+    print(type(b))
+    print(b)
+    print('\n')
     bi=[]
     for c in b:
+        print(type(c))
         bi.append(int(c))
     print("Buffer containing the encoded message:")
     print(bi)
@@ -154,8 +179,8 @@ def test_protocol(mavlink, signing=False):
 print("Testing mavlink1\n")
 test_protocol(mavlink1)
 
-print("\nTesting mavlink2\n")
-test_protocol(mavlink2)
+#print("\nTesting mavlink2\n")
+#test_protocol(mavlink2)
 
-print("\nTesting mavlink2 with signing\n")
-test_protocol(mavlink2, True)
+#print("\nTesting mavlink2 with signing\n")
+#test_protocol(mavlink2, True)
